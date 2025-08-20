@@ -198,12 +198,19 @@
             isRaining: null,
         };
 
-        // --- API Keys & Endpoints (Using free/public APIs) ---
-        const OPENWEATHER_API_KEY = 'c2a7a87a372485558156148281f448c2'; // Replace with your own key for production
-        const CHECKWX_API_KEY = 'd9b7636e053a473da985a1a14c'; // Replace with your own key for production
+        // --- API Keys & Endpoints ---
+        // IMPORTANT: Replace with your own API keys. 
+        // For production, it is highly recommended to use a server-side proxy 
+        // to hide your API keys and prevent unauthorized use.
+        const OPENWEATHER_API_KEY = 'YOUR_OPENWEATHER_API_KEY';
+        const CHECKWX_API_KEY = 'YOUR_CHECKWX_API_KEY';
 
         // --- Event Listeners ---
         getLocationBtn.addEventListener('click', () => {
+            if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'YOUR_OPENWEATHER_API_KEY' || !CHECKWX_API_KEY || CHECKWX_API_KEY === 'YOUR_CHECKWX_API_KEY') {
+                alert('กรุณาตั้งค่า API Keys ในโค้ดก่อนใช้งาน');
+                return;
+            }
             loadingOverlay.classList.remove('hidden');
             locationStatus.textContent = 'กำลังร้องขอตำแหน่ง...';
             if (navigator.geolocation) {
