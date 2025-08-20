@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tactical Drone Go/No-Go Dashboard</title>
+    <title>Drone Decision Training Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -32,29 +32,34 @@
             box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
         }
         .btn-primary {
-            background-color: #3b82f6; /* bg-blue-600 */
+            background-color: #f59e0b; /* amber-500 */
             color: white;
         }
         .btn-primary:hover {
-            background-color: #2563eb; /* bg-blue-700 */
+            background-color: #d97706; /* amber-600 */
             transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
-        .status-go {
-            background: linear-gradient(145deg, #16a34a, #15803d);
+        .btn-secondary {
+            background-color: #16a34a; /* bg-green-600 */
             color: white;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         }
-        .status-caution {
-            background: linear-gradient(145deg, #f59e0b, #d97706);
-            color: white;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        .btn-secondary:hover {
+            background-color: #15803d; /* bg-green-700 */
+            transform: translateY(-2px);
         }
-        .status-no-go {
-            background: linear-gradient(145deg, #dc2626, #b91c1c);
-            color: white;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        .btn-decision {
+            width: 100%;
+            font-size: 1.25rem;
+            padding: 1rem;
         }
+        .btn-go { background-color: #16a34a; }
+        .btn-go:hover { background-color: #15803d; }
+        .btn-nogo { background-color: #dc2626; }
+        .btn-nogo:hover { background-color: #b91c1c; }
+
+        .explanation-correct { border-left: 5px solid #16a34a; }
+        .explanation-incorrect { border-left: 5px solid #dc2626; }
+
         .checklist-item {
             display: flex;
             align-items: center;
@@ -74,104 +79,64 @@
             margin-right: 0.75rem;
             accent-color: #3b82f6; /* blue-600 */
         }
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(5px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            flex-direction: column;
-            gap: 1rem;
-        }
     </style>
 </head>
 <body class="min-h-screen">
-    <div id="loading-overlay" class="hidden">
-        <i class="fas fa-spinner fa-spin fa-3x text-white"></i>
-        <p class="text-white text-lg">กำลังดึงข้อมูล...</p>
-    </div>
-
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">Tactical Drone Go/No-Go</h1>
-            <p class="text-gray-400 mt-2 text-md md:text-lg">แผงควบคุมสนับสนุนการตัดสินใจปฏิบัติภารกิจ</p>
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight">Drone Decision Training Simulator</h1>
+            <p class="text-gray-400 mt-2 text-md md:text-lg">ระบบจำลองการฝึกตัดสินใจ Go/No-Go</p>
         </header>
 
-        <div class="text-center mb-8">
-            <button id="getLocationBtn" class="btn btn-primary">
-                <i class="fas fa-map-marker-alt mr-2"></i> ขอตำแหน่งและข้อมูลสภาพอากาศ
+        <div class="text-center mb-8 flex flex-wrap justify-center gap-4">
+            <button id="simulateBtn" class="btn btn-secondary text-lg">
+                <i class="fas fa-random mr-2"></i> สุ่มสถานการณ์ทั่วไป
             </button>
-            <p id="locationStatus" class="text-sm text-gray-500 mt-2 h-4"></p>
+            <button id="dilemmaBtn" class="btn btn-primary text-lg">
+                <i class="fas fa-exclamation-triangle mr-2"></i> สถานการณ์ที่ตัดสินใจยาก
+            </button>
+            <p id="scenarioStatus" class="text-sm text-gray-500 mt-2 h-4 w-full"></p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-            <!-- Left Column: Weather & METAR -->
+            <!-- Left Column: Weather, METAR, Telemetry -->
             <div class="lg:col-span-2 space-y-6 md:space-y-8">
-                <!-- Local Weather -->
+                <!-- Weather Card -->
                 <div class="card">
-                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center">
-                        <i class="fas fa-cloud-sun-rain mr-3 text-blue-400"></i> สภาพอากาศ ณ ตำแหน่งปัจจุบัน
-                    </h2>
-                    <div id="weather-data" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div class="p-4 bg-gray-700/50 rounded-lg">
-                            <p class="text-sm text-gray-400">อุณหภูมิ</p>
-                            <p id="temp" class="text-2xl font-bold text-white">- °C</p>
-                        </div>
-                        <div class="p-4 bg-gray-700/50 rounded-lg">
-                            <p class="text-sm text-gray-400">ความชื้น</p>
-                            <p id="humidity" class="text-2xl font-bold text-white">- %</p>
-                        </div>
-                        <div class="p-4 bg-gray-700/50 rounded-lg">
-                            <p class="text-sm text-gray-400">ความเร็วลม</p>
-                            <p id="wind" class="text-2xl font-bold text-white">- kts</p>
-                        </div>
-                        <div class="p-4 bg-gray-700/50 rounded-lg">
-                            <p class="text-sm text-gray-400">ปริมาณฝน (1ชม.)</p>
-                            <p id="rain" class="text-2xl font-bold text-white">- mm</p>
-                        </div>
-                    </div>
+                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center"><i class="fas fa-cloud-sun-rain mr-3 text-blue-400"></i> สภาพอากาศจำลอง</h2>
+                    <div id="weather-data" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center"></div>
                 </div>
-
-                <!-- METAR Data -->
+                <!-- METAR Card -->
                 <div class="card">
-                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center">
-                        <i class="fas fa-plane-departure mr-3 text-blue-400"></i> ข้อมูล METAR จากสนามบินใกล้เคียง
-                    </h2>
-                    <div id="metar-data">
-                        <p class="text-gray-400">กรุณากดขอเข้าถึงตำแหน่งเพื่อดึงข้อมูล</p>
-                    </div>
+                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center"><i class="fas fa-plane-departure mr-3 text-blue-400"></i> ข้อมูล METAR จำลอง</h2>
+                    <div id="metar-data"><p class="text-gray-400">กดปุ่ม 'เริ่มการจำลอง' เพื่อสร้างสถานการณ์</p></div>
+                </div>
+                <!-- Drone Telemetry Card -->
+                <div class="card">
+                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center"><i class="fas fa-satellite-dish mr-3 text-blue-400"></i> ข้อมูลจากอากาศยาน (Telemetry)</h2>
+                    <div id="telemetry-data" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center"></div>
                 </div>
             </div>
 
             <!-- Right Column: Checklist & Decision -->
-            <div class="space-y-6 md:space-y-8">
-                <!-- Decision Panel -->
-                <div class="card text-center sticky top-8">
-                    <h2 class="text-xl font-semibold text-white mb-4">สถานะการตัดสินใจ</h2>
-                    <div id="decision-status" class="p-6 rounded-lg text-4xl lg:text-5xl font-bold transition-all duration-300 status-no-go">
-                        NO-GO
-                    </div>
-                    <p id="decision-reason" class="mt-4 text-gray-400 min-h-[40px] flex items-center justify-center">รอข้อมูลและการตรวจสอบ</p>
-                </div>
-
+            <div class="flex flex-col space-y-6 md:space-y-8">
                 <!-- Checklist -->
                 <div class="card">
-                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center">
-                        <i class="fas fa-tasks mr-3 text-blue-400"></i> Pre-flight Checklist
-                    </h2>
-                    <div id="checklist">
-                        <label class="checklist-item"><input type="checkbox" class="checklist-box"> สภาพอากาศปลอดภัย (ลม, ฝน)</label>
-                        <label class="checklist-item"><input type="checkbox" class="checklist-box"> ตรวจสอบสภาพอากาศยาน</label>
-                        <label class="checklist-item"><input type="checkbox" class="checklist-box"> แบตเตอรี่เพียงพอ (UAV & GCS)</label>
-                        <label class="checklist-item"><input type="checkbox" class="checklist-box"> ระบบ GPS และสัญญาณปกติ</label>
-                        <label class="checklist-item"><input type="checkbox" class="checklist-box"> พื้นที่ปฏิบัติการปลอดภัย</label>
-                        <label class="checklist-item"><input type="checkbox" class="checklist-box"> ได้รับอนุญาต/ประสานงานแล้ว</label>
+                    <h2 class="text-xl font-semibold text-white mb-4 border-b border-gray-600 pb-2 flex items-center"><i class="fas fa-tasks mr-3 text-blue-400"></i> Pre-flight Checklist</h2>
+                    <div id="checklist"></div>
+                </div>
+                <!-- Decision Panel -->
+                <div class="card text-center mt-auto">
+                    <h2 class="text-xl font-semibold text-white mb-4">ภารกิจนี้จะ Go หรือ No Go?</h2>
+                    <div id="decision-buttons" class="space-y-4">
+                        <button id="goBtn" class="btn btn-go btn-decision">GO</button>
+                        <button id="noGoBtn" class="btn btn-nogo btn-decision">NO GO</button>
+                    </div>
+                    <div id="explanation-card" class="hidden text-left p-4 rounded-lg bg-gray-700/50">
+                        <h3 id="explanation-title" class="text-lg font-bold mb-2"></h3>
+                        <p id="explanation-recommendation" class="text-2xl font-bold mb-3"></p>
+                        <p class="text-sm font-semibold mb-1">เหตุผล:</p>
+                        <ul id="explanation-reasons" class="list-disc list-inside text-sm text-gray-300"></ul>
                     </div>
                 </div>
             </div>
@@ -180,128 +145,234 @@
 
     <script>
         // --- DOM Elements ---
-        const getLocationBtn = document.getElementById('getLocationBtn');
-        const locationStatus = document.getElementById('locationStatus');
-        const tempEl = document.getElementById('temp');
-        const humidityEl = document.getElementById('humidity');
-        const windEl = document.getElementById('wind');
-        const rainEl = document.getElementById('rain');
+        const simulateBtn = document.getElementById('simulateBtn');
+        const dilemmaBtn = document.getElementById('dilemmaBtn');
+        const scenarioStatus = document.getElementById('scenarioStatus');
+        const weatherDataEl = document.getElementById('weather-data');
         const metarDataEl = document.getElementById('metar-data');
-        const checklistItems = document.querySelectorAll('.checklist-box');
-        const decisionStatusEl = document.getElementById('decision-status');
-        const decisionReasonEl = document.getElementById('decision-reason');
-        const loadingOverlay = document.getElementById('loading-overlay');
+        const telemetryDataEl = document.getElementById('telemetry-data');
+        const checklistEl = document.getElementById('checklist');
+        const decisionButtonsEl = document.getElementById('decision-buttons');
+        const goBtn = document.getElementById('goBtn');
+        const noGoBtn = document.getElementById('noGoBtn');
+        const explanationCardEl = document.getElementById('explanation-card');
+        const explanationTitleEl = document.getElementById('explanation-title');
+        const explanationRecommendationEl = document.getElementById('explanation-recommendation');
+        const explanationReasonsEl = document.getElementById('explanation-reasons');
 
         // --- State ---
-        let weatherConditions = {
-            windSpeedKts: null,
-            isRaining: null,
-        };
-
-        // --- API Keys & Endpoints ---
-        // IMPORTANT: Replace with your own API keys. 
-        // For production, it is highly recommended to use a server-side proxy 
-        // to hide your API keys and prevent unauthorized use.
-        const OPENWEATHER_API_KEY = 'YOUR_OPENWEATHER_API_KEY';
-        const CHECKWX_API_KEY = 'YOUR_CHECKWX_API_KEY';
+        let currentScenarioData = {};
 
         // --- Event Listeners ---
-        getLocationBtn.addEventListener('click', () => {
-            if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'YOUR_OPENWEATHER_API_KEY' || !CHECKWX_API_KEY || CHECKWX_API_KEY === 'YOUR_CHECKWX_API_KEY') {
-                alert('กรุณาตั้งค่า API Keys ในโค้ดก่อนใช้งาน');
-                return;
-            }
-            loadingOverlay.classList.remove('hidden');
-            locationStatus.textContent = 'กำลังร้องขอตำแหน่ง...';
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(locationSuccess, locationError, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                });
-            } else {
-                locationStatus.textContent = "เบราว์เซอร์ไม่รองรับ Geolocation";
-                loadingOverlay.classList.add('hidden');
-            }
-        });
+        simulateBtn.addEventListener('click', () => simulateRandomScenario(false));
+        dilemmaBtn.addEventListener('click', () => simulateRandomScenario(true));
+        goBtn.addEventListener('click', () => handleDecision('GO'));
+        noGoBtn.addEventListener('click', () => handleDecision('NO GO'));
 
-        checklistItems.forEach(item => {
-            item.addEventListener('change', updateDecisionStatus);
-        });
-
-        // --- Geolocation Functions ---
-        function locationSuccess(position) {
-            const { latitude, longitude } = position.coords;
-            locationStatus.textContent = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
-            getWeatherData(latitude, longitude);
-            getMetarData(latitude, longitude);
+        // --- Initial Setup ---
+        function initialize() {
+            weatherDataEl.innerHTML = `
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">อุณหภูมิ</p><p id="temp" class="text-2xl font-bold text-white">- °C</p></div>
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">ความชื้น</p><p id="humidity" class="text-2xl font-bold text-white">- %</p></div>
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">ความเร็วลม</p><p id="wind" class="text-2xl font-bold text-white">- kts</p></div>
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">ปริมาณฝน (1ชม.)</p><p id="rain" class="text-2xl font-bold text-white">- mm</p></div>
+            `;
+            telemetryDataEl.innerHTML = `
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">แบตเตอรี่</p><div class="flex items-center justify-center text-2xl font-bold"><i id="battery-icon" class="fas fa-battery-empty mr-2"></i><p id="battery-level">- %</p></div></div>
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">สัญญาณ GPS</p><p id="gps-status" class="text-xl font-bold">-</p><p id="gps-sats" class="text-sm text-gray-400">- Sats</p></div>
+                <div class="p-4 bg-gray-700/50 rounded-lg"><p class="text-sm text-gray-400">ลม (Onboard)</p><p id="onboard-wind" class="text-2xl font-bold">- kts</p></div>
+            `;
+            checklistEl.innerHTML = `
+                <label class="checklist-item"><input type="checkbox" class="checklist-box"> สภาพอากาศปลอดภัย (ลม, ฝน)</label>
+                <label class="checklist-item"><input type="checkbox" class="checklist-box"> ตรวจสอบสภาพอากาศยาน</label>
+                <label class="checklist-item"><input type="checkbox" class="checklist-box"> แบตเตอรี่เพียงพอ (UAV & GCS)</label>
+                <label class="checklist-item"><input type="checkbox" class="checklist-box"> ระบบ GPS และสัญญาณปกติ</label>
+                <label class="checklist-item"><input type="checkbox" class="checklist-box"> พื้นที่ปฏิบัติการปลอดภัย</label>
+                <label class="checklist-item"><input type="checkbox" class="checklist-box"> ได้รับอนุญาต/ประสานงานแล้ว</label>
+            `;
         }
+        initialize();
 
-        function locationError(error) {
-            console.warn(`ERROR(${error.code}): ${error.message}`);
-            locationStatus.textContent = "ไม่สามารถเข้าถึงตำแหน่งได้";
-            loadingOverlay.classList.add('hidden');
-        }
-
-        // --- Data Fetching Functions ---
-        async function getWeatherData(lat, lon) {
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=metric&lang=th`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                updateWeatherUI(data);
-            } catch (error) {
-                console.error("Error fetching weather data:", error);
-                tempEl.textContent = "Error";
-            }
-        }
-
-        async function getMetarData(lat, lon) {
-            const url = `https://api.checkwx.com/metar/lat/${lat}/lon/${lon}/radius/50/decoded`;
-            try {
-                const response = await fetch(url, { headers: { 'X-API-Key': CHECKWX_API_KEY } });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                if (data.results > 0) {
-                    updateMetarUI(data.data[0]);
-                } else {
-                    metarDataEl.innerHTML = `<p class="text-amber-400">ไม่พบข้อมูล METAR ในรัศมี 50 ไมล์ทะเล</p>`;
+        // --- Main Functions ---
+        function simulateRandomScenario(isDilemma = false) {
+            decisionButtonsEl.classList.remove('hidden');
+            explanationCardEl.classList.add('hidden');
+            explanationCardEl.classList.remove('explanation-correct', 'explanation-incorrect');
+            
+            let simTemp, simHumidity, simWindSpeedKts, simIsRaining, simRainAmount, scenarioType, timeOfDayText;
+            
+            if (isDilemma) {
+                scenarioStatus.textContent = "สถานการณ์จำลอง: สถานการณ์ที่ตัดสินใจยาก";
+                // Create a specific dilemma scenario
+                const dilemmaType = Math.floor(Math.random() * 2); // 2 types of dilemmas for now
+                if (dilemmaType === 0) { // Borderline Wind
+                    simWindSpeedKts = 14 + Math.random() * 4; // 14-18 kts, right on the edge
+                    simIsRaining = false; simRainAmount = 0;
+                    simTemp = 28 + Math.random() * 5; simHumidity = 60 + Math.random() * 25;
+                    scenarioType = 'Borderline Wind';
+                } else { // Good Weather, Bad GPS
+                    simWindSpeedKts = 4 + Math.random() * 6; // 4-10 kts, very safe
+                    simIsRaining = false; simRainAmount = 0;
+                    simTemp = 27 + Math.random() * 6; simHumidity = 65 + Math.random() * 20;
+                    scenarioType = 'Bad GPS';
                 }
-            } catch (error) {
-                console.error("Error fetching METAR data:", error);
-                metarDataEl.innerHTML = `<p class="text-red-400">เกิดข้อผิดพลาดในการดึงข้อมูล METAR</p>`;
-            } finally {
-                loadingOverlay.classList.add('hidden');
+            } else {
+                const currentHour = new Date().getHours();
+                if (currentHour >= 6 && currentHour < 12) { timeOfDayText = 'ช่วงเช้า'; simWindSpeedKts = 2 + Math.random() * 10; simIsRaining = Math.random() < 0.15; scenarioType = 'Morning Calm'; } 
+                else if (currentHour >= 12 && currentHour < 17) { timeOfDayText = 'ช่วงบ่าย'; simWindSpeedKts = 5 + Math.random() * 18; simIsRaining = Math.random() < 0.4; scenarioType = 'Afternoon Heat & Wind'; } 
+                else { timeOfDayText = 'ช่วงเย็น/กลางคืน'; simWindSpeedKts = 1 + Math.random() * 9; simIsRaining = Math.random() < 0.2; scenarioType = 'Evening Calm'; }
+                scenarioStatus.textContent = `สถานการณ์จำลอง: ${timeOfDayText}`;
+                simTemp = 25 + Math.random() * 10; simHumidity = 60 + Math.random() * 35;
+                if (simIsRaining) {
+                    simHumidity = 85 + Math.random() * 15;
+                    simRainAmount = (0.1 + Math.random() * 7).toFixed(1); 
+                    if (simRainAmount > 2.5 && scenarioType === 'Afternoon Heat & Wind') scenarioType = 'Afternoon Thunderstorm';
+                } else {
+                    simRainAmount = 0;
+                }
+            }
+
+            updateWeatherUI(simTemp, simHumidity, simWindSpeedKts, simIsRaining, simRainAmount);
+            simulateMetarData(simWindSpeedKts, simIsRaining, scenarioType, simTemp, simHumidity);
+            
+            // Simulate Telemetry
+            let simGpsStatus, simSatellites;
+            if (scenarioType === 'Bad GPS') {
+                simGpsStatus = 'Weak';
+                simSatellites = 5 + Math.floor(Math.random() * 4); // 5-8
+            } else {
+                const gpsRoll = Math.random();
+                if (scenarioType === 'Afternoon Thunderstorm' && gpsRoll < 0.5) { simGpsStatus = 'Weak'; simSatellites = 5 + Math.floor(Math.random() * 4); } 
+                else if (gpsRoll < 0.2) { simGpsStatus = 'Weak'; simSatellites = 5 + Math.floor(Math.random() * 4); } 
+                else if (gpsRoll < 0.7) { simGpsStatus = 'Good'; simSatellites = 9 + Math.floor(Math.random() * 7); } 
+                else { simGpsStatus = 'Strong'; simSatellites = 16 + Math.floor(Math.random() * 9); }
+            }
+            const satelliteSystems = ['GPS+GLONASS', 'GPS+Galileo', 'GPS+GLONASS+BeiDou', 'GPS+GLONASS+Galileo'];
+            const simGpsSource = satelliteSystems[Math.floor(Math.random() * satelliteSystems.length)];
+            const simOnboardWind = Math.max(0, simWindSpeedKts + (Math.random() * 4 - 2));
+            updateTelemetryUI(simGpsStatus, simSatellites, simGpsSource, simOnboardWind);
+
+            const checklistItems = document.querySelectorAll('.checklist-box');
+            checklistItems.forEach(item => { item.checked = false; });
+            
+            currentScenarioData = { simWindSpeedKts, simIsRaining, simRainAmount, simGpsStatus };
+        }
+
+        function handleDecision(userChoice) {
+            const checklistItems = document.querySelectorAll('.checklist-box');
+            const allChecked = Array.from(checklistItems).every(item => item.checked);
+            
+            const correctDecision = calculateCorrectDecision(
+                currentScenarioData.simWindSpeedKts, 
+                currentScenarioData.simIsRaining, 
+                currentScenarioData.simRainAmount,
+                allChecked, 
+                currentScenarioData.simGpsStatus
+            );
+            
+            const isCorrect = (userChoice === correctDecision.status);
+
+            explanationTitleEl.textContent = isCorrect ? 'การตัดสินใจถูกต้อง!' : 'การตัดสินใจไม่ถูกต้อง';
+            explanationRecommendationEl.textContent = `คำแนะนำคือ: ${correctDecision.status}`;
+            explanationReasonsEl.innerHTML = correctDecision.reasons.map(reason => `<li>${reason}</li>`).join('');
+
+            explanationCardEl.classList.remove('hidden');
+            explanationCardEl.classList.add(isCorrect ? 'explanation-correct' : 'explanation-incorrect');
+            decisionButtonsEl.classList.add('hidden');
+        }
+
+        function calculateCorrectDecision(windSpeedKts, isRaining, rainAmount, allChecked, gpsStatus) {
+            let reasons = [];
+            if (isRaining && rainAmount > 2.5) reasons.push(`ฝนตกหนัก (${rainAmount} mm/hr)`);
+            if (windSpeedKts > 20) reasons.push(`ลมแรงเกินเกณฑ์ปลอดภัย (${windSpeedKts.toFixed(1)} kts)`);
+            else if (windSpeedKts > 15) reasons.push(`ลมค่อนข้างแรง (${windSpeedKts.toFixed(1)} kts)`);
+            if (gpsStatus === 'Weak') reasons.push('สัญญาณ GPS อ่อน');
+            if (!allChecked) reasons.push('Checklist ไม่สมบูรณ์');
+
+            if (reasons.length === 0) {
+                return { status: 'GO', reasons: ['สภาพอากาศ, สัญญาณ และ Checklist อยู่ในเกณฑ์ปลอดภัย'] };
+            } else {
+                return { status: 'NO GO', reasons: reasons };
             }
         }
 
-        // --- UI Update Functions ---
-        function updateWeatherUI(data) {
-            const temp = data.main.temp;
-            const humidity = data.main.humidity;
-            const windSpeedMps = data.wind.speed;
-            const rain1h = data.rain ? data.rain['1h'] : 0;
-            const windSpeedKts = (windSpeedMps * 1.94384).toFixed(1);
+        // --- UI Update & Helper Functions ---
+        function updateWeatherUI(temp, humidity, windKts, isRaining, rainAmount) {
+            document.getElementById('temp').textContent = `${temp.toFixed(1)} °C`;
+            document.getElementById('humidity').textContent = `${humidity.toFixed(0)} %`;
+            document.getElementById('wind').textContent = `${windKts.toFixed(1)} kts`;
+            document.getElementById('rain').textContent = `${rainAmount} mm`;
+        }
+        
+        function updateTelemetryUI(gps, satellites, gpsSource, onboardWind) {
+            const simBattery = Math.floor(60 + Math.random() * 41);
+            const batteryLevelEl = document.getElementById('battery-level');
+            const batteryIconEl = document.getElementById('battery-icon');
+            const gpsStatusEl = document.getElementById('gps-status');
+            const gpsSatsEl = document.getElementById('gps-sats');
+            
+            batteryLevelEl.textContent = `${simBattery} %`;
+            batteryIconEl.className = 'fas mr-2';
+            if (simBattery > 80) { batteryIconEl.classList.add('fa-battery-full', 'text-green-400'); }
+            else if (simBattery > 50) { batteryIconEl.classList.add('fa-battery-three-quarters', 'text-green-400'); }
+            else if (simBattery > 25) { batteryIconEl.classList.add('fa-battery-half', 'text-yellow-400'); }
+            else { batteryIconEl.classList.add('fa-battery-quarter', 'text-red-400'); }
 
-            tempEl.textContent = `${temp.toFixed(1)} °C`;
-            humidityEl.textContent = `${humidity} %`;
-            windEl.textContent = `${windSpeedKts} kts`;
-            rainEl.textContent = `${rain1h} mm`;
+            gpsStatusEl.textContent = gps;
+            gpsStatusEl.className = 'text-xl font-bold';
+            if (gps === 'Strong') { gpsStatusEl.classList.add('text-green-400'); }
+            else if (gps === 'Good') { gpsStatusEl.classList.add('text-yellow-400'); }
+            else { gpsStatusEl.classList.add('text-red-400'); }
+            
+            gpsSatsEl.textContent = `${satellites} ดวง (${gpsSource})`;
+            document.getElementById('onboard-wind').textContent = `${onboardWind.toFixed(1)} kts`;
+        }
 
-            weatherConditions.windSpeedKts = parseFloat(windSpeedKts);
-            weatherConditions.isRaining = rain1h > 0;
-            updateDecisionStatus();
+        function simulateMetarData(windKts, isRaining, scenarioType, temp, humidity) {
+            let metar;
+            const dewpoint = (temp - ((100 - humidity) / 5)).toFixed(0);
+            const tempStr = `${Math.round(temp)}/${dewpoint}`;
+            const windDir = Math.floor(Math.random() * 36) * 10; // Random direction
+
+            if (scenarioType === 'Afternoon Thunderstorm') {
+                metar = {
+                    raw_text: `VTBS 200830Z ${windDir}${Math.round(windKts)}G${Math.round(windKts)+15}KT 3000 +TSRA FEW010CB BKN025 ${tempStr} A2980 RMK SIMULATED`,
+                    station: { name: 'สนามบินจำลอง (พายุฝนฟ้าคะนอง)', icao: 'VTXX' },
+                    wind: { degrees: windDir, speed_kts: Math.round(windKts), gust_kts: Math.round(windKts) + 15 },
+                    visibility: { meters_float: 3000 },
+                    conditions: [{ text: 'พายุฝนฟ้าคะนองรุนแรง (Heavy Thunderstorm with Rain)' }],
+                    clouds: [{ text: 'เมฆคิวมูโลนิมบัสเล็กน้อย (Few Cumulonimbus)', feet: 1000 }, { text: 'เมฆเกาะกลุ่ม (Broken)', feet: 2500 }],
+                    temperature: { celsius: Math.round(temp) }, dewpoint: { celsius: dewpoint },
+                    barometer: { hpa: 1008 }, flight_category: 'IFR'
+                };
+            } else if (windKts > 15 || scenarioType === 'Borderline Wind') {
+                 metar = {
+                    raw_text: `VTBD 200700Z ${windDir}${String(Math.round(windKts)).padStart(2, '0')}KT 9999 SCT030 ${tempStr} A2990 RMK SIMULATED`,
+                    station: { name: 'สนามบินจำลอง (ลมแรง)', icao: 'VTXX' },
+                    wind: { degrees: windDir, speed_kts: Math.round(windKts) },
+                    visibility: { meters_float: 10000 }, conditions: [],
+                    clouds: [{ text: 'เมฆกระจายเป็นหย่อม (Scattered)', feet: 3000 }],
+                    temperature: { celsius: Math.round(temp) }, dewpoint: { celsius: dewpoint },
+                    barometer: { hpa: 1012 }, flight_category: 'VFR'
+                };
+            } else { // Good weather
+                metar = {
+                    raw_text: `VTSM 200300Z ${windDir}${String(Math.round(windKts)).padStart(2, '0')}KT 9999 FEW025 ${tempStr} A2992 RMK SIMULATED`,
+                    station: { name: 'สนามบินจำลอง (อากาศดี)', icao: 'VTXX' },
+                    wind: { degrees: windDir, speed_kts: Math.round(windKts) },
+                    visibility: { meters_float: 10000 }, conditions: [],
+                    clouds: [{ text: 'เมฆเล็กน้อย (Few)', feet: 2500 }],
+                    temperature: { celsius: Math.round(temp) }, dewpoint: { celsius: dewpoint },
+                    barometer: { hpa: 1013 }, flight_category: 'VFR'
+                };
+            }
+            updateMetarUI(metar);
         }
 
         function updateMetarUI(metar) {
             let html = `
-                <div class="mb-4 p-3 bg-gray-900 rounded-lg">
-                    <p class="font-mono text-md text-cyan-400 break-words">${metar.raw_text}</p>
-                    <p class="text-sm text-gray-500 mt-1">สนามบิน: ${metar.station.name} (${metar.icao})</p>
-                </div>
-                <h3 class="font-semibold text-white mb-2">คำแปลความหมาย:</h3>
-                <ul class="space-y-2 text-sm">
+                <div class="mb-4 p-3 bg-gray-900 rounded-lg"><p class="font-mono text-md text-cyan-400 break-words">${metar.raw_text}</p><p class="text-sm text-gray-500 mt-1">สนามบิน: ${metar.station.name} (${metar.icao})</p></div>
+                <h3 class="font-semibold text-white mb-2">คำแปลความหมาย:</h3><ul class="space-y-2 text-sm">
             `;
             if (metar.wind) html += `<li class="flex items-start"><i class="fas fa-wind w-5 mt-1 text-gray-400"></i><span><strong>ลม:</strong> ทิศ ${metar.wind.degrees}° @ ${metar.wind.speed_kts} kts ${metar.wind.gust_kts ? `(กระโชก ${metar.wind.gust_kts} kts)` : ''}</span></li>`;
             if (metar.visibility) html += `<li class="flex items-start"><i class="fas fa-eye w-5 mt-1 text-gray-400"></i><span><strong>ทัศนวิสัย:</strong> ${metar.visibility.meters_float.toLocaleString()} ม.</span></li>`;
@@ -316,39 +387,6 @@
             html += `</ul>`;
             metarDataEl.innerHTML = html;
         }
-
-        // --- Decision Logic ---
-        function updateDecisionStatus() {
-            const allChecked = Array.from(checklistItems).every(item => item.checked);
-            const { windSpeedKts, isRaining } = weatherConditions;
-            let reasons = [];
-
-            if (windSpeedKts === null) {
-                reasons.push('รอข้อมูลสภาพอากาศ');
-            } else {
-                if (isRaining) reasons.push('มีฝนตก');
-                if (windSpeedKts > 20) reasons.push(`ลมแรงเกินไป (${windSpeedKts} kts)`);
-                else if (windSpeedKts > 15) reasons.push(`ลมค่อนข้างแรง (${windSpeedKts} kts)`);
-            }
-            if (!allChecked) reasons.push('Checklist ไม่สมบูรณ์');
-
-            let status = 'NO-GO';
-            let reasonText = `ไม่แนะนำให้ทำการบิน: ${reasons.join(', ')}`;
-
-            if (reasons.length === 0) {
-                status = 'GO';
-                reasonText = 'สภาพอากาศและ Checklist อยู่ในเกณฑ์ปลอดภัย';
-            } else if (allChecked && windSpeedKts > 15 && windSpeedKts <= 20 && !isRaining) {
-                status = 'CAUTION';
-                reasonText = `พิจารณาด้วยความระมัดระวัง: ${reasons.join(', ')}`;
-            }
-            
-            decisionStatusEl.textContent = status;
-            decisionReasonEl.textContent = reasonText;
-            decisionStatusEl.classList.remove('status-go', 'status-caution', 'status-no-go');
-            decisionStatusEl.classList.add(`status-${status.toLowerCase()}`);
-        }
-        updateDecisionStatus();
     </script>
 </body>
 </html>
